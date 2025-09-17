@@ -70,6 +70,193 @@ def clip_to_boundary(
     return x_store, t_after_breach, clipped_state, next_store_index, False
 
 
+def compute_boundary_mfe_reflection(
+    _t_eval: NDArray,
+    x_store: NDArray,
+    _t_before_breach: float,
+    t_after_breach: float,
+    _state_before_breach: NDArray,
+    state_after_breach: NDArray,
+    next_store_index: int,
+    n_nodes: int,
+    r: NDArray,
+    r_tilde: NDArray,
+) -> tuple[NDArray, float, NDArray, int, bool]:
+
+    # Choose projection onto simplex as initial guess
+    x = _project_onto_standard_simplex(state_after_breach)
+
+    for i in range(10):
+        boundary_vector = _compute_mean_field_equation(x, r, r_tilde)
+        residual = _compute_line_point_distance(x, boundary_vector, state_after_breach)
+        print(
+            "\nstep ",
+            i,
+        )
+        print(residual)
+        print(x)
+
+        if residual <= 1e-10:
+            break
+
+        boundary_vector_jacobian = _compute_mean_field_equation_derivative(
+            x, r, r_tilde
+        )
+        line_projection_jacobian = _compute_line_point_projection_jacobian(
+            x, boundary_vector, boundary_vector_jacobian, state_after_breach
+        )
+        value = -1 * _compute_projection_onto_line(
+            x, boundary_vector, state_after_breach
+        )
+        x += np.linalg.solve(line_projection_jacobian, value)
+
+        x = _project_onto_standard_simplex(x)
+
+    return x_store, t_after_breach, x, next_store_index, False
+
+
+def _compute_mean_field_equation(
+    shares: NDArray, r: NDArray, r_tilde: NDArray
+) -> NDArray:
+
+    n_states = shares.shape[0]
+    res = np.zeros(n_states)
+    for m in range(n_states):
+        for n in range(n_states):
+            if m == n:
+                continue
+            tmp = shares[m] * (r[m, n] * shares[n] + r_tilde[m, n])
+            res[n] += tmp
+            res[m] -= tmp
+    return res
+
+
+def _compute_mean_field_equation_derivative(
+    shares: NDArray, r: NDArray, r_tilde: NDArray
+) -> NDArray:
+
+    n_states = shares.shape[0]
+    jacobi = np.zeros((n_states, n_states))
+    for i in range(n_states):
+        for j in range(n_states):
+            if i == j:
+                for k in range(n_states):
+                    if k == i:
+                        continue
+                    jacobi[i, j] += shares[k] * (r[i, k] - r[k, i]) + r_tilde[i, k]
+                continue
+            jacobi[i, j] = shares[i] * (r[i, j] - r[j, i]) - r_tilde[j, i]
+
+    return jacobi
+
+
+def _compute_projection_onto_simplex_facette(
+    x: NDArray,
+    facette_index: int,
+) -> NDArray:
+
+    return
+
+
+@njit(cache=True)
+def _compute_projection_onto_line(
+    line_base_point: NDArray, line_vector: NDArray, point: NDArray
+) -> NDArray:
+    """
+    Computes the vector between a point and its projection onto a line.
+
+    The line is defined by a base vector and a direction vector.
+    Take the norm of the result to get the distance between the point and the line.
+
+    Parameters
+    ----------
+    line_base_point: NDArray
+    line_vector: NDArray
+        Does not have to be unit length.
+    point: NDArray
+
+    Returns
+    -------
+    projection_vector: NDArray
+    """
+    return (
+        line_base_point
+        - point
+        - ((line_base_point - point) @ line_vector) * line_vector
+    )
+
+
+@njit(cache=True)
+def _compute_line_point_distance(
+    line_base_point: NDArray, line_vector: NDArray, point: NDArray
+) -> float:
+    """
+    Computes the distance between a line defined by a base point and a vector and a point.
+
+    Input arrays have to have dtype float or complex since numba cannot handle exotic dtypes like int.
+
+    Parameters
+    ----------
+    line_base_point: NDArray
+    line_vector: NDArray
+        Does not have to be unit length.
+    point: NDArray
+
+    Returns
+    -------
+    distance: float
+    """
+    line_vector = line_vector / np.linalg.norm(line_vector)
+    return float(
+        np.linalg.norm(
+            line_base_point
+            - point
+            - ((line_base_point - point) @ line_vector) * line_vector,
+            2,
+        )
+    )
+
+
+@njit(cache=True)
+def _compute_line_point_projection_jacobian(
+    line_base_point: NDArray,
+    line_vector: NDArray,
+    line_vector_jacobi: NDArray,
+    point: NDArray,
+) -> NDArray:
+    """
+    Computes the Jacobian of the projection-vector between a line defined by a base point and a vector and a point.
+
+    See _compute_projection_onto_line for the corresponding projection function.
+    Parameters
+    ----------
+    line_base_point: NDArray
+    line_vector: NDArray
+    line_vector_jacobi: NDArray
+    point: NDArray
+
+    Returns
+    -------
+    Jacobian: NDArray
+    """
+    n_states = line_vector.shape[0]
+
+    res_jacobi = np.zeros((n_states, n_states))
+
+    for i in range(n_states):
+        for j in range(n_states):
+            if i == j:
+                res_jacobi[i, j] += 1
+            res_jacobi[i, j] += (
+                -line_vector[j] * line_vector[i]
+                - ((line_base_point - point) @ line_vector_jacobi[i, :])
+                * line_vector[i]
+                - ((line_base_point - point) @ line_vector) * line_vector_jacobi[i, j]
+            )
+
+    return res_jacobi
+
+
 @njit(cache=True)
 def compute_normal_boundary_reflection(
     _t_eval: NDArray,

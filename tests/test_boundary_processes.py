@@ -92,6 +92,102 @@ def test_compute_normal_boundary_reflection(state_after_breach, expected):
 
 
 @pytest.mark.parametrize(
+    "state_after_breach, expected",
+    [
+        ([5.5, -10.2, 5.7], [0.2, 0.4, 0.4]),
+        # ([-1, 0.8, 1.2], [0.3, 0.15, 0.55]),
+        # ([-0.1, -0.1, 1.2], [0.1, 0.1, 0.8]),
+        # ([-0.5, -0.5, 2], [0.25, 0.25, 0.5]),
+        # ([2, -2, 1], [0.9 + 1 / 30, 1 / 30, 1 / 30]),
+    ],
+)
+def test_boundary_mfe_reflection(state_after_breach, expected):
+    state_after_breach = np.array(state_after_breach)
+    expected = np.array(expected)
+    n_states = state_after_breach.shape[0]
+    n_nodes = 10
+    n_timesteps = 10
+    t_max = 10
+    t = np.linspace(0, t_max, n_timesteps)
+    x_store = np.zeros((n_timesteps, n_states))
+    x_store[0] = state_after_breach
+
+    x_store, current_t, current_state, index, _ = bp.compute_boundary_mfe_reflection(
+        _t_eval=t,
+        x_store=x_store,
+        _t_before_breach=float(t[0]),
+        t_after_breach=float(t[1]),
+        _state_before_breach=x_store[0],
+        state_after_breach=state_after_breach,
+        next_store_index=1,
+        n_nodes=n_nodes,
+        r=np.array([[0, 0.8, 0.2], [0.2, 0, 0.8], [0.8, 0.2, 0]]),
+        r_tilde=np.array([[0, 0.1, 0.1], [0.1, 0, 0.1], [0.1, 0.1, 0]]),
+    )
+
+    return
+
+
+@pytest.mark.parametrize(
+    "line_base, line_vector, point, expected",
+    [
+        ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], 1),
+        ([0.0, 0.0], [1.0, 0.0], [0.0, 1.0], 1),
+        ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.0, 0.0], 0),
+        ([0.0, 0.0], [1.0, 1.0], [1.0, 0.0], 1 / np.sqrt(2)),
+    ],
+)
+def test_compute_line_point_distance(line_base, line_vector, point, expected):
+    line_base = np.array(line_base)
+    line_vector = np.array(line_vector)
+    point = np.array(point)
+    assert np.isclose(
+        bp._compute_line_point_distance(line_base, line_vector, point), expected
+    )
+
+
+@pytest.mark.parametrize(
+    "line_base, line_vector, line_vector_jacobi, point, expected",
+    [
+        (
+            [0.0, 0.0],
+            [1.0, 0.0],
+            [[0.0, 0.0], [0.0, 0.0]],
+            [0.0, 2.0],
+            [[0.0, 0.0], [0.0, 1.0]],
+        ),
+        (
+            [-1.0, 0.0],
+            [1.0, 1.0],
+            [[0.0, 0.0], [0.0, 0.0]],
+            [0.0, 1.0],
+            [[0.0, -1.0], [-1.0, 0.0]],
+        ),
+        (
+            [0.0, 0.0],
+            [1.0, 1.0],
+            [[1.0, 0.0], [1.0, 0.0]],
+            [0.0, 1.0],
+            [[1.0, -1.0], [0.0, 0.0]],
+        ),
+    ],
+)
+def test_line_point_distance_jacobian(
+    line_base, line_vector, line_vector_jacobi, point, expected
+):
+    line_base = np.array(line_base)
+    line_vector = np.array(line_vector)
+    line_vector_jacobi = np.array(line_vector_jacobi)
+    point = np.array(point)
+    expected = np.array(expected)
+
+    res = bp._compute_line_point_projection_jacobian(
+        line_base, line_vector, line_vector_jacobi, point
+    )
+    assert np.allclose(res, expected)
+
+
+@pytest.mark.parametrize(
     "state_before_breach, state_after_breach",
     [
         ([0.2, 0.4, 0.4], [-0.2, 0.6, 0.6]),

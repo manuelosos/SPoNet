@@ -86,6 +86,9 @@ def compute_boundary_mfe_reflection(
     # Choose projection onto simplex as initial guess
     x = _project_onto_standard_simplex(state_after_breach)
 
+    stay_on_boundary_condition = np.zeros_like(x)
+    stay_on_boundary_condition[np.argmin(x)] = 100
+
     for i in range(10):
         boundary_vector = _compute_mean_field_equation(x, r, r_tilde)
         residual = _compute_line_point_distance(x, boundary_vector, state_after_breach)
@@ -93,10 +96,11 @@ def compute_boundary_mfe_reflection(
             "\nstep ",
             i,
         )
-        print(residual)
-        print(x)
+        print("residual: ", residual)
+        print("approx: ", x)
 
         if residual <= 1e-10:
+            print("converged")
             break
 
         boundary_vector_jacobian = _compute_mean_field_equation_derivative(
@@ -108,9 +112,17 @@ def compute_boundary_mfe_reflection(
         value = -1 * _compute_projection_onto_line(
             x, boundary_vector, state_after_breach
         )
-        x += np.linalg.solve(line_projection_jacobian, value)
 
-        x = _project_onto_standard_simplex(x)
+        lin_system_matrix = np.vstack(
+            (line_projection_jacobian, stay_on_boundary_condition, np.ones_like(x))
+        )
+        rhs = np.zeros(lin_system_matrix.shape[0])
+        rhs[: line_projection_jacobian.shape[0]] = value
+
+        res = np.linalg.lstsq(lin_system_matrix, rhs)
+        x += res[0]
+
+        # x = _project_onto_standard_simplex(x)
 
     return x_store, t_after_breach, x, next_store_index, False
 
@@ -506,6 +518,21 @@ def _project_onto_standard_simplex(x: NDArray) -> NDArray:
             break
     res = x - t_hat
     return np.where(res > 0, res, 0)
+
+
+def _map_to_simplex_facette(x: NDArray, facette_index: int) -> NDArray:
+
+
+    res = np.empty(x.shape[0] + 2)
+    res[facette_index] = 0
+
+    if facette_index == x.shape[0]:
+        res[0] = 1-np.sum(x)
+
+
+    res[(facette_index+1) % (res.shape[0]+1)] = 1 - np.sum(x)
+
+    res[]
 
 
 def get_boundary_process_from_alias(alias: str) -> BoundaryProcess:

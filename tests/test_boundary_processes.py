@@ -94,7 +94,7 @@ def test_compute_normal_boundary_reflection(state_after_breach, expected):
 @pytest.mark.parametrize(
     "state_after_breach, expected",
     [
-        ([5.5, -10.2, 5.7], [0.2, 0.4, 0.4]),
+        ([0.5, -0.2, 0.7], [0.2, 0.4, 0.4]),
         # ([-1, 0.8, 1.2], [0.3, 0.15, 0.55]),
         # ([-0.1, -0.1, 1.2], [0.1, 0.1, 0.8]),
         # ([-0.5, -0.5, 2], [0.25, 0.25, 0.5]),

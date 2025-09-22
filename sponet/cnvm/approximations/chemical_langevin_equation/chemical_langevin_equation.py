@@ -68,6 +68,10 @@ def sample_cle(
         )
     )
 
+    # TODO mfe-reflection alias anpassen
+    if num_states == 2 and boundary_process == "reflection":
+        boundary_process = "normal-reflection"
+
     boundary_process = get_boundary_process_from_alias(boundary_process)
 
     for i in range(num_states):

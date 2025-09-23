@@ -73,6 +73,7 @@ def visualize_mfe_vector_field(
     params: CNVMParameters,
     ax: Axes,
     resolution: int = 15,
+    show_only_coordinate: int = -1,
 ):
     """
     Visualizes the vector field given by the RRE/MFE on the simplex.
@@ -108,10 +109,16 @@ def visualize_mfe_vector_field(
     projected_anchor_points = (trans_matrix.T @ (anchor_points - bary).T).T
 
     for i in range(anchor_points.shape[0]):
-        tmp, _ = _drift_and_diffusion(
+        drift_vector, _ = _drift_and_diffusion(
             anchor_points[i], r, r_tilde, 10
         )  # TODO Use own MFE function
-        projected_anchor_vectors[i] = trans_matrix.T @ (tmp - bary)
+
+        if show_only_coordinate != -1:
+            drift_vector_mask = np.zeros_like(drift_vector)
+            drift_vector_mask[show_only_coordinate] = 1
+            drift_vector[np.logical_not(drift_vector_mask)] = 0
+
+        projected_anchor_vectors[i] = trans_matrix.T @ (drift_vector - bary)
 
     ax.quiver(
         projected_anchor_points[:, 0],
@@ -127,6 +134,37 @@ def visualize_mfe_vector_field(
 
     ax.set_aspect("equal")
 
+    # TODO Labeling for triangle sides
+    sides = [
+        (projected_unit_vectors[1], projected_unit_vectors[2], "1"),  # v1=0
+        (projected_unit_vectors[0], projected_unit_vectors[2], "2"),  # v2=0
+        (projected_unit_vectors[0], projected_unit_vectors[1], "3"),  # v3=0
+    ]
+
+    offset = 0.05  # Größe der Verschiebung nach außen
+
+    for p1, p2, label in sides:
+        midpoint = (p1 + p2) / 2
+        edge_vec = p2 - p1
+        # Normalvektor (90°-Rotation)
+        normal = np.array([-edge_vec[1], edge_vec[0]])
+        normal /= np.linalg.norm(normal)
+
+        # Entscheiden, welche Seite "außen" ist → vom Schwerpunkt weg
+        centroid = projected_unit_vectors.mean(axis=0)
+        if np.dot(midpoint + normal * offset - centroid, normal) < 0:
+            normal = -normal
+
+        mp_shifted = midpoint + offset * normal
+        ax.text(
+            mp_shifted[0],
+            mp_shifted[1],
+            label,
+            ha="center",
+            va="center",
+            fontsize=12,
+            color="blue",
+        )
     return ax
 
 

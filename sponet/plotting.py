@@ -7,7 +7,7 @@ from .parameters import Parameters
 from .cnvm.parameters import CNVMParameters
 from .multiprocessing import sample_many_runs
 from sponet.cnvm.approximations.chemical_langevin_equation import _drift_and_diffusion
-
+from .simplex_utils import project_isometric_simplex_to_plane
 from numpy.typing import NDArray
 import matplotlib.pyplot as plt
 
@@ -96,13 +96,14 @@ def visualize_mfe_vector_field(
     r_tilde = params.r_tilde
     n_states = r.shape[0]
 
-    anchor_points = simplex_grid(3, 1 / resolution)
+    anchor_points = project_to_simplex_plane(3, 1 / resolution)
 
     # TODO Write fast function for isometric projection
     trans_matrix = np.column_stack(
         [np.array([1, -1, 0]) / np.sqrt(2), np.array([1, 1, -2]) / np.sqrt(6)]
     )  # 3x2 matrix
     bary = np.array([1 / 3, 1 / 3, 1 / 3])
+    projected_anchor_points = (trans_matrix.T @ (x - bary).T).T
 
     projected_anchor_points = np.empty((anchor_points.shape[0], n_states - 1))
     projected_anchor_vectors = np.empty_like(projected_anchor_points)
@@ -134,23 +135,20 @@ def visualize_mfe_vector_field(
 
     ax.set_aspect("equal")
 
-    # TODO Labeling for triangle sides
     sides = [
         (projected_unit_vectors[1], projected_unit_vectors[2], "1"),  # v1=0
         (projected_unit_vectors[0], projected_unit_vectors[2], "2"),  # v2=0
         (projected_unit_vectors[0], projected_unit_vectors[1], "3"),  # v3=0
     ]
 
-    offset = 0.05  # Größe der Verschiebung nach außen
+    offset = 0.05  # Size of label offset
 
     for p1, p2, label in sides:
         midpoint = (p1 + p2) / 2
         edge_vec = p2 - p1
-        # Normalvektor (90°-Rotation)
         normal = np.array([-edge_vec[1], edge_vec[0]])
         normal /= np.linalg.norm(normal)
 
-        # Entscheiden, welche Seite "außen" ist → vom Schwerpunkt weg
         centroid = projected_unit_vectors.mean(axis=0)
         if np.dot(midpoint + normal * offset - centroid, normal) < 0:
             normal = -normal
@@ -168,68 +166,3 @@ def visualize_mfe_vector_field(
     return ax
 
 
-@njit(cache=True)
-def binomial(n: int, r: int) -> int:
-    if r < 0 or r > n:
-        return 0
-    if r == 0 or r == n:
-        return 1
-    # compute combinatorially, safe for small sizes
-    rr = r if r <= n - r else n - r
-    res = 1
-    for i in range(rr):
-        res = (res * (n - i)) // (i + 1)
-    return res
-
-
-@njit(cache=True)
-def simplex_grid(dim: int, resolution: float) -> np.ndarray:
-    """
-    Uniform grid on the standard M-simplex using spacing ~ resolution.
-    Non-recursive, Numba-friendly.
-    Returns an array of shape (N, M) with rows summing to 1.
-    """
-    if dim <= 1:
-        raise ValueError("M must be > 1")
-    # convert resolution to integer denominator K (round nearest)
-
-    n_points_per_unit = max(1, int(1 / resolution + 0.5))
-
-    nSlots = n_points_per_unit + dim - 1  # total slots in stars-and-bars
-    r = dim - 1  # number of separators (bars)
-
-    N = binomial(n_points_per_unit + dim - 1, dim - 1)
-    pts = np.empty((N, dim), dtype=np.float64)
-
-    # initialize first combination s = [0,1,2,...,r-1] (zero-based positions)
-    s = np.empty(r, dtype=np.int64)
-    for i in range(r):
-        s[i] = i
-
-    idx = 0
-    while True:
-        # compute composition from separators s:
-        # n0 = s[0]
-        # ni = s[i] - s[i-1] - 1  for i=1..r-1
-        # n_{M-1} = (nSlots - 1) - s[r-1]
-        for j in range(dim):
-            if j == 0:
-                compj = s[0]
-            elif j == dim - 1:
-                compj = (nSlots - 1) - s[r - 1]
-            else:
-                compj = s[j] - s[j - 1] - 1
-            pts[idx, j] = compj / n_points_per_unit
-        idx += 1
-
-        # generate next combination in lexicographic order
-        i = r - 1
-        while i >= 0 and s[i] == (nSlots - r + i):
-            i -= 1
-        if i < 0:
-            break
-        s[i] += 1
-        for j in range(i + 1, r):
-            s[j] = s[j - 1] + 1
-
-    return pts

@@ -78,12 +78,12 @@ def visualize_mfe_vector_field(
     ax: Axes,
     n_points_per_length_unit: int = 15,
     show_only_coordinate: int = -1,
+    plot_frame: bool = True,
 ):
     """
     Visualizes the vector field given by the RRE/MFE on the simplex.
 
-    Only implemented for n_opinions = 3.
-
+    Currently only implemented for n_opinions = 3.
 
     Parameters
     ----------
@@ -91,6 +91,11 @@ def visualize_mfe_vector_field(
     n_points_per_length_unit: int
         Determines how many points there are on a length of one unit.
     ax: Axes
+    show_only_coordinate : int
+        Plots only the given coordinate of the vectors.
+    plot_frame: bool
+        Set to true if the simplex frame should be plotted.
+        Defaults to True
 
     Returns
     -------
@@ -128,19 +133,49 @@ def visualize_mfe_vector_field(
         compute_anchor_vectors(), trans_matrix
     )
 
+    if plot_frame:
+        ax = plot_simplex_projection_frame(ax)
+
     ax.quiver(
         projected_anchor_points[:, 0],
         projected_anchor_points[:, 1],
         projected_anchor_vectors[:, 0],
         projected_anchor_vectors[:, 1],
     )
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    return ax
+
+
+def plot_projected_trajectory(ax: Axes, traj: NDArray, plot_frame: bool = True):
+
+    if plot_frame:
+        plot_simplex_projection_frame(ax)
+
+    projected_traj = project_isometric_simplex_to_plane(traj)
+
+    ax.plot(projected_traj[:, 0], projected_traj[:, 1])
+
+    ax.set_aspect("equal")
+    ax.axis("off")
+
+    return ax
+
+
+def plot_simplex_projection_frame(ax: Axes):
+
+    n_states = 3
 
     # Plot triangle frame
     unit_vectors = np.vstack((np.eye(n_states), np.eye(n_states)[0]))
-    projected_unit_vectors = project_isometric_simplex_to_plane(
-        unit_vectors, trans_matrix
+    projected_unit_vectors = project_isometric_simplex_to_plane(unit_vectors)
+    ax.plot(
+        projected_unit_vectors[:, 0],
+        projected_unit_vectors[:, 1],
+        zorder=-1,
+        color="gray",
     )
-    ax.plot(projected_unit_vectors[:, 0], projected_unit_vectors[:, 1], zorder=-1)
 
     # Label triangle sides
     sides = [
@@ -149,7 +184,7 @@ def visualize_mfe_vector_field(
         (projected_unit_vectors[0], projected_unit_vectors[1], "3"),  # v3=0
     ]
 
-    offset = 0.05  # Distance from label to triangle side
+    offset = 0.08  # Distance from label to triangle side
 
     for p1, p2, label in sides:
         midpoint = (p1 + p2) / 2
@@ -168,9 +203,11 @@ def visualize_mfe_vector_field(
             label,
             ha="center",
             va="center",
-            fontsize=12,
-            color="blue",
+            fontsize=25,
+            color="black",
         )
 
+    ax.axis("off")
     ax.set_aspect("equal")
+
     return ax

@@ -82,6 +82,8 @@ def generate_uniform_simplex_grid(dim: int, n_points_per_length_unit: float) -> 
     if n_points_per_length_unit <= 1:
         raise ValueError("n_points_per_length_unit must be > 1")
 
+    n_points_per_length_unit -= 1
+
     n_slots = n_points_per_length_unit + dim - 1  # total slots in stars-and-bars
     n_bars = dim - 1  # number of bars
 

@@ -8,24 +8,23 @@ from sponet.simplex_utils import (
 )
 
 
-# TODO Test fertig schreiben
 @pytest.mark.parametrize(
     "value, expected",
     [
-        ([1 / 3, 1 / 3, 1 / 3], [0, 0]),
+        (np.array([1 / 3, 1 / 3, 1 / 3]), np.array([0, 0])),
         (
-            [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
-            [
-                [7.07106781e-01, 4.08248290e-01],
-                [-7.07106781e-01, 4.08248290e-01],
-                [-3.83224528e-18, -8.16496581e-01],
-            ],
+            np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+            np.array(
+                [
+                    [7.07106781e-01, 4.08248290e-01],
+                    [-7.07106781e-01, 4.08248290e-01],
+                    [-3.83224528e-18, -8.16496581e-01],
+                ]
+            ),
         ),
     ],
 )
 def test_project_isometric_simplex_to_plane(value, expected):
-    value = np.array(value)
-    expected = np.array(expected)
     res = project_isometric_simplex_to_plane(value)
     assert np.allclose(res, expected)
 

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 from matplotlib.axes import Axes
 from numba import njit, prange
 
@@ -12,8 +13,6 @@ from .simplex_utils import (
     generate_uniform_simplex_grid,
     compute_from_simplex_orthogonal_transformation_matrix,
 )
-from numpy.typing import NDArray
-import matplotlib.pyplot as plt
 
 
 def plot_trajectories(
@@ -73,7 +72,7 @@ def plot_trajectories(
     return ax
 
 
-def visualize_mfe_vector_field(
+def plot_mfe_vector_field(
     params: CNVMParameters,
     ax: Axes,
     n_points_per_length_unit: int = 15,
@@ -84,6 +83,7 @@ def visualize_mfe_vector_field(
     Visualizes the vector field given by the RRE/MFE on the simplex.
 
     Currently only implemented for n_opinions = 3.
+    The simplex will be projected isometrically to the plane.
 
     Parameters
     ----------
@@ -173,6 +173,7 @@ def plot_simplex_projection_frame(ax: Axes):
     ax.plot(
         projected_unit_vectors[:, 0],
         projected_unit_vectors[:, 1],
+        lw=2,
         zorder=-1,
         color="gray",
     )

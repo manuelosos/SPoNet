@@ -101,7 +101,7 @@ def test_compute_normal_boundary_reflection(state_after_breach, expected):
         # ([2, -2, 1], [0.9 + 1 / 30, 1 / 30, 1 / 30]),
     ],
 )
-def test_boundary_mfe_reflection(state_after_breach, expected):
+def test_compute_boundary_mfe_reflection(state_after_breach, expected):
     state_after_breach = np.array(state_after_breach)
     expected = np.array(expected)
     n_states = state_after_breach.shape[0]
@@ -112,7 +112,8 @@ def test_boundary_mfe_reflection(state_after_breach, expected):
     x_store = np.zeros((n_timesteps, n_states))
     x_store[0] = state_after_breach
 
-    x_store, current_t, current_state, index, _ = bp.compute_boundary_mfe_reflection(
+    # x_store, current_t, current_state, index, _ =
+    bp.compute_boundary_mfe_reflection(
         _t_eval=t,
         x_store=x_store,
         _t_before_breach=float(t[0]),

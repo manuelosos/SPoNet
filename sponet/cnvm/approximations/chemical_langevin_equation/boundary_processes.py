@@ -512,6 +512,17 @@ def _project_onto_standard_simplex(x: NDArray) -> NDArray:
     return np.where(res > 0, res, 0)
 
 
+def _map_to_simplex_facette(x: NDArray, facette_index: int) -> NDArray:
+
+    res = np.empty(x.shape[0] + 2)
+    res[facette_index] = 0
+
+    if facette_index == x.shape[0]:
+        res[0] = 1 - np.sum(x)
+
+    res[(facette_index + 1) % (res.shape[0] + 1)] = 1 - np.sum(x)
+
+
 def get_boundary_process_from_alias(alias: str) -> BoundaryProcess:
     boundary_process_dict = {
         "clipping": clip_to_boundary,

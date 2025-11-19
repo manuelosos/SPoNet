@@ -9,8 +9,6 @@ from sponet.utils import (
     calculate_neighbor_list,
     counts_from_shares,
     mask_subsequent_duplicates,
-    map_to_simplex_facette,
-    map_from_simplex_facette,
 )
 
 
